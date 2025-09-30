@@ -1,0 +1,12 @@
+{
+  "name": "forages_chatbot",
+  "resources": [
+    {
+      "name": "serving-endpoint",
+      "serving_endpoint": {
+        "name": "databricks-gpt-oss-120b",
+        "permission": "CAN_QUERY"
+      }
+    }
+  ]
+}
