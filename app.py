@@ -143,15 +143,92 @@ st.markdown("""
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Try to get configuration from environment variables first, then Streamlit secrets
 SERVING_ENDPOINT = os.getenv('SERVING_ENDPOINT')
-assert SERVING_ENDPOINT, \
-    ("Unable to determine serving endpoint to use for chatbot app. If developing locally, "
-     "set the SERVING_ENDPOINT environment variable to the name of your serving endpoint. If "
-     "deploying to a Databricks app, include a serving endpoint resource named "
-     "'serving_endpoint' with CAN_QUERY permissions, as described in "
-     "https://docs.databricks.com/aws/en/generative-ai/agent-framework/chat-app#deploy-the-databricks-app")
+DATABRICKS_HOST = os.getenv('DATABRICKS_HOST')
+DATABRICKS_TOKEN = os.getenv('DATABRICKS_TOKEN')
 
-ENDPOINT_SUPPORTS_FEEDBACK = endpoint_supports_feedback(SERVING_ENDPOINT)
+# If not found in environment, try Streamlit secrets
+if not SERVING_ENDPOINT or not DATABRICKS_HOST or not DATABRICKS_TOKEN:
+    try:
+        # Debug: Show what we're trying to read
+        logger.info("Trying to read from Streamlit secrets...")
+        
+        if hasattr(st, 'secrets'):
+            logger.info("Streamlit secrets are available")
+            if not SERVING_ENDPOINT:
+                SERVING_ENDPOINT = st.secrets.get("SERVING_ENDPOINT")
+                logger.info(f"Got SERVING_ENDPOINT from secrets: {'***' if SERVING_ENDPOINT else 'None'}")
+            if not DATABRICKS_HOST:
+                DATABRICKS_HOST = st.secrets.get("DATABRICKS_HOST")
+                logger.info(f"Got DATABRICKS_HOST from secrets: {'***' if DATABRICKS_HOST else 'None'}")
+            if not DATABRICKS_TOKEN:
+                DATABRICKS_TOKEN = st.secrets.get("DATABRICKS_TOKEN")
+                logger.info(f"Got DATABRICKS_TOKEN from secrets: {'***' if DATABRICKS_TOKEN else 'None'}")
+        else:
+            logger.warning("Streamlit secrets not available")
+            
+        # Set environment variables for databricks-sdk
+        if DATABRICKS_HOST:
+            os.environ['DATABRICKS_HOST'] = DATABRICKS_HOST
+        if DATABRICKS_TOKEN:
+            os.environ['DATABRICKS_TOKEN'] = DATABRICKS_TOKEN
+            
+    except Exception as e:
+        logger.error(f"Error reading from Streamlit secrets: {e}")
+        st.error(f"Error reading secrets: {e}")
+
+# Check if we have the required configuration
+if not SERVING_ENDPOINT:
+    st.error("❌ **Missing Configuration: SERVING_ENDPOINT**")
+    st.info("""
+    **For Streamlit Cloud deployment**, add this to your app secrets:
+    ```
+    SERVING_ENDPOINT = "your-databricks-endpoint-name"
+    DATABRICKS_HOST = "https://your-workspace.cloud.databricks.com"
+    DATABRICKS_TOKEN = "your-databricks-token"
+    ```
+    
+    **For local development**, set environment variables or create `.streamlit/secrets.toml`:
+    ```toml
+    SERVING_ENDPOINT = "your-databricks-endpoint-name"
+    DATABRICKS_HOST = "https://your-workspace.cloud.databricks.com"
+    DATABRICKS_TOKEN = "your-databricks-token"
+    ```
+    """)
+    st.stop()
+
+if not DATABRICKS_HOST or not DATABRICKS_TOKEN:
+    st.error("❌ **Missing Databricks Authentication**")
+    st.info("""
+    **Required secrets:**
+    - `DATABRICKS_HOST`: Your Databricks workspace URL
+    - `DATABRICKS_TOKEN`: Your Databricks personal access token
+    
+    Add these to your Streamlit Cloud app secrets or local `.streamlit/secrets.toml` file.
+    """)
+    st.stop()
+
+# Debug info (remove in production)
+with st.expander("🔧 Configuration Debug", expanded=False):
+    st.write("**Configuration Status:**")
+    st.write(f"- SERVING_ENDPOINT: {'✅ Set' if SERVING_ENDPOINT else '❌ Missing'}")
+    st.write(f"- DATABRICKS_HOST: {'✅ Set' if DATABRICKS_HOST else '❌ Missing'}")
+    st.write(f"- DATABRICKS_TOKEN: {'✅ Set' if DATABRICKS_TOKEN else '❌ Missing'}")
+    
+    if SERVING_ENDPOINT:
+        st.write(f"- Endpoint name: `{SERVING_ENDPOINT}`")
+    if DATABRICKS_HOST:
+        st.write(f"- Databricks host: `{DATABRICKS_HOST}`")
+
+try:
+    ENDPOINT_SUPPORTS_FEEDBACK = endpoint_supports_feedback(SERVING_ENDPOINT)
+    st.success("✅ Successfully connected to Databricks endpoint!")
+except Exception as e:
+    logger.warning(f"Could not check endpoint feedback support: {e}")
+    ENDPOINT_SUPPORTS_FEEDBACK = False
+    st.error(f"❌ Could not connect to Databricks: {str(e)}")
+    st.info("Please check your Databricks credentials and endpoint configuration.")
 
 def reduce_chat_agent_chunks(chunks):
     """
@@ -469,22 +546,22 @@ def query_responses_endpoint_and_render(input_messages):
 
 
 
-# # --- Chat input (must run BEFORE rendering messages) ---
-# prompt = st.chat_input("Ask a question")
-# if prompt:
-#     # Get the task type for this endpoint
-#     task_type = _get_endpoint_task_type(SERVING_ENDPOINT)
+# --- Chat input (must run BEFORE rendering messages) ---
+prompt = st.chat_input("Ask a question")
+if prompt:
+    # Get the task type for this endpoint
+    task_type = _get_endpoint_task_type(SERVING_ENDPOINT)
     
-#     # Add user message to chat history
-#     user_msg = UserMessage(content=prompt)
-#     st.session_state.history.append(user_msg)
-#     user_msg.render(len(st.session_state.history) - 1)
+    # Add user message to chat history
+    user_msg = UserMessage(content=prompt)
+    st.session_state.history.append(user_msg)
+    user_msg.render(len(st.session_state.history) - 1)
 
-#     # Convert history to standard chat message format for the query methods
-#     input_messages = [msg for elem in st.session_state.history for msg in elem.to_input_messages()]
+    # Convert history to standard chat message format for the query methods
+    input_messages = [msg for elem in st.session_state.history for msg in elem.to_input_messages()]
     
-#     # Handle the response using the appropriate handler
-#     assistant_response = query_endpoint_and_render(task_type, input_messages)
+    # Handle the response using the appropriate handler
+    assistant_response = query_endpoint_and_render(task_type, input_messages)
     
-#     # Add assistant response to history
-#     st.session_state.history.append(assistant_response)
+    # Add assistant response to history
+    st.session_state.history.append(assistant_response)
