@@ -17,9 +17,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        'Get Help': 'https://www.extremelycoolapp.com/help',
-        'Report a bug': "https://www.extremelycoolapp.com/bug",
-        'About': "# Chat Forages Chatbot\nPowered by AI"
     }
 )
 
@@ -140,161 +137,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Try to get configuration from environment variables first, then Streamlit secrets
-SERVING_ENDPOINT = os.getenv('SERVING_ENDPOINT')
-DATABRICKS_HOST = os.getenv('DATABRICKS_HOST')
-DATABRICKS_TOKEN = os.getenv('DATABRICKS_TOKEN')
-
-# If not found in environment, try Streamlit secrets
-if not SERVING_ENDPOINT or not DATABRICKS_HOST or not DATABRICKS_TOKEN:
-    try:
-        # Debug: Show what we're trying to read
-        logger.info("Trying to read from Streamlit secrets...")
-        
-        if hasattr(st, 'secrets'):
-            logger.info("Streamlit secrets are available")
-            if not SERVING_ENDPOINT:
-                SERVING_ENDPOINT = st.secrets.get("SERVING_ENDPOINT")
-                logger.info(f"Got SERVING_ENDPOINT from secrets: {'***' if SERVING_ENDPOINT else 'None'}")
-            if not DATABRICKS_HOST:
-                DATABRICKS_HOST = st.secrets.get("DATABRICKS_HOST")
-                logger.info(f"Got DATABRICKS_HOST from secrets: {'***' if DATABRICKS_HOST else 'None'}")
-            if not DATABRICKS_TOKEN:
-                DATABRICKS_TOKEN = st.secrets.get("DATABRICKS_TOKEN")
-                logger.info(f"Got DATABRICKS_TOKEN from secrets: {'***' if DATABRICKS_TOKEN else 'None'}")
-        else:
-            logger.warning("Streamlit secrets not available")
-            
-        # Set environment variables for databricks-sdk
-        if DATABRICKS_HOST:
-            os.environ['DATABRICKS_HOST'] = DATABRICKS_HOST
-        if DATABRICKS_TOKEN:
-            os.environ['DATABRICKS_TOKEN'] = DATABRICKS_TOKEN
-            
-    except Exception as e:
-        logger.error(f"Error reading from Streamlit secrets: {e}")
-        st.error(f"Error reading secrets: {e}")
-
-# Check if we have the required configuration
-if not SERVING_ENDPOINT:
-    st.error("❌ **Missing Configuration: SERVING_ENDPOINT**")
-    st.info("""
-    **For Streamlit Cloud deployment**, add this to your app secrets:
-    ```
-    SERVING_ENDPOINT = "your-databricks-endpoint-name"
-    DATABRICKS_HOST = "https://your-workspace.cloud.databricks.com"
-    DATABRICKS_TOKEN = "your-databricks-token"
-    ```
-    
-    **For local development**, set environment variables or create `.streamlit/secrets.toml`:
-    ```toml
-    SERVING_ENDPOINT = "your-databricks-endpoint-name"
-    DATABRICKS_HOST = "https://your-workspace.cloud.databricks.com"
-    DATABRICKS_TOKEN = "your-databricks-token"
-    ```
-    """)
-    st.stop()
-
-if not DATABRICKS_HOST or not DATABRICKS_TOKEN:
-    st.error("❌ **Missing Databricks Authentication**")
-    st.info("""
-    **Required secrets:**
-    - `DATABRICKS_HOST`: Your Databricks workspace URL
-    - `DATABRICKS_TOKEN`: Your Databricks personal access token
-    
-    Add these to your Streamlit Cloud app secrets or local `.streamlit/secrets.toml` file.
-    """)
-    st.stop()
-
-# Debug info (remove in production)
-with st.expander("🔧 Configuration Debug", expanded=False):
-    st.write("**Configuration Status:**")
-    st.write(f"- SERVING_ENDPOINT: {'✅ Set' if SERVING_ENDPOINT else '❌ Missing'}")
-    st.write(f"- DATABRICKS_HOST: {'✅ Set' if DATABRICKS_HOST else '❌ Missing'}")
-    st.write(f"- DATABRICKS_TOKEN: {'✅ Set' if DATABRICKS_TOKEN else '❌ Missing'}")
-    
-    if SERVING_ENDPOINT:
-        st.write(f"- Endpoint name: `{SERVING_ENDPOINT}`")
-    if DATABRICKS_HOST:
-        st.write(f"- Databricks host: `{DATABRICKS_HOST}`")
-
-try:
-    ENDPOINT_SUPPORTS_FEEDBACK = endpoint_supports_feedback(SERVING_ENDPOINT)
-    st.success("✅ Successfully connected to Databricks endpoint!")
-except Exception as e:
-    logger.warning(f"Could not check endpoint feedback support: {e}")
-    ENDPOINT_SUPPORTS_FEEDBACK = False
-    st.error(f"❌ Could not connect to Databricks: {str(e)}")
-    st.info("Please check your Databricks credentials and endpoint configuration.")
-
-def reduce_chat_agent_chunks(chunks):
-    """
-    Reduce a list of ChatAgentChunk objects corresponding to a particular
-    message into a single ChatAgentMessage
-    """
-    deltas = [chunk.delta for chunk in chunks]
-    first_delta = deltas[0]
-    result_msg = first_delta
-    msg_contents = []
-    
-    # Accumulate tool calls properly
-    tool_call_map = {}  # Map call_id to tool call for accumulation
-    
-    for delta in deltas:
-        # Handle content
-        if delta.content:
-            msg_contents.append(delta.content)
-            
-        # Handle tool calls
-        if hasattr(delta, 'tool_calls') and delta.tool_calls:
-            for tool_call in delta.tool_calls:
-                call_id = getattr(tool_call, 'id', None)
-                tool_type = getattr(tool_call, 'type', "function")
-                function_info = getattr(tool_call, 'function', None)
-                if function_info:
-                    func_name = getattr(function_info, 'name', "")
-                    func_args = getattr(function_info, 'arguments', "")
-                else:
-                    func_name = ""
-                    func_args = ""
-                
-                if call_id:
-                    if call_id not in tool_call_map:
-                        # New tool call
-                        tool_call_map[call_id] = {
-                            "id": call_id,
-                            "type": tool_type,
-                            "function": {
-                                "name": func_name,
-                                "arguments": func_args
-                            }
-                        }
-                    else:
-                        # Accumulate arguments for existing tool call
-                        existing_args = tool_call_map[call_id]["function"]["arguments"]
-                        tool_call_map[call_id]["function"]["arguments"] = existing_args + func_args
-
-                        # Update function name if provided
-                        if func_name:
-                            tool_call_map[call_id]["function"]["name"] = func_name
-
-        # Handle tool call IDs (for tool response messages)
-        if hasattr(delta, 'tool_call_id') and delta.tool_call_id:
-            result_msg = result_msg.model_copy(update={"tool_call_id": delta.tool_call_id})
-    
-    # Convert tool call map back to list
-    if tool_call_map:
-        accumulated_tool_calls = list(tool_call_map.values())
-        result_msg = result_msg.model_copy(update={"tool_calls": accumulated_tool_calls})
-    
-    result_msg = result_msg.model_copy(update={"content": "".join(msg_contents)})
-    return result_msg
-
-
-
 # --- Init state ---
 if "history" not in st.session_state:
     st.session_state.history = []
@@ -327,241 +169,476 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
 
+# # --- DEBUG SECTION: Show config and secrets status in the UI ---
+# # (Moved here so variables are defined)
 
-# --- Render chat history ---
-for i, element in enumerate(st.session_state.history):
-    element.render(i)
+# # Try to get configuration from environment variables first, then Streamlit secrets
+# SERVING_ENDPOINT = os.getenv('SERVING_ENDPOINT')
+# DATABRICKS_HOST = os.getenv('DATABRICKS_HOST')
+# DATABRICKS_TOKEN = os.getenv('DATABRICKS_TOKEN')
 
-def query_endpoint_and_render(task_type, input_messages):
-    """Handle streaming response based on task type."""
-    if task_type == "agent/v1/responses":
-        return query_responses_endpoint_and_render(input_messages)
-    elif task_type == "agent/v2/chat":
-        return query_chat_agent_endpoint_and_render(input_messages)
-    else:  # chat/completions
-        return query_chat_completions_endpoint_and_render(input_messages)
-
-
-def query_chat_completions_endpoint_and_render(input_messages):
-    """Handle ChatCompletions streaming format."""
-    with st.chat_message("assistant", avatar="public/grass.png"):
-        response_area = st.empty()
-        response_area.markdown("_Thinking..._")
+# # If not found in environment, try Streamlit secrets
+# if not SERVING_ENDPOINT or not DATABRICKS_HOST or not DATABRICKS_TOKEN:
+#     try:
+#         # Debug: Show what we're trying to read
+#         logger.info("Trying to read from Streamlit secrets...")
         
-        accumulated_content = ""
-        request_id = None
-        
-        try:
-            for chunk in query_endpoint_stream(
-                endpoint_name=SERVING_ENDPOINT,
-                messages=input_messages,
-                return_traces=ENDPOINT_SUPPORTS_FEEDBACK
-            ):
-                if "choices" in chunk and chunk["choices"]:
-                    delta = chunk["choices"][0].get("delta", {})
-                    content = delta.get("content", "")
-                    if content:
-                        accumulated_content += content
-                        response_area.markdown(accumulated_content)
-                
-                if "databricks_output" in chunk:
-                    req_id = chunk["databricks_output"].get("databricks_request_id")
-                    if req_id:
-                        request_id = req_id
+#         if hasattr(st, 'secrets'):
+#             logger.info("Streamlit secrets are available")
+#             if not SERVING_ENDPOINT:
+#                 try:
+#                     SERVING_ENDPOINT = st.secrets["SERVING_ENDPOINT"]
+#                     logger.info(f"Got SERVING_ENDPOINT from secrets: {'***' if SERVING_ENDPOINT else 'None'}")
+#                 except KeyError:
+#                     logger.warning("SERVING_ENDPOINT not found in secrets")
+#             if not DATABRICKS_HOST:
+#                 try:
+#                     DATABRICKS_HOST = st.secrets["DATABRICKS_HOST"]
+#                     logger.info(f"Got DATABRICKS_HOST from secrets: {'***' if DATABRICKS_HOST else 'None'}")
+#                 except KeyError:
+#                     logger.warning("DATABRICKS_HOST not found in secrets")
+#             if not DATABRICKS_TOKEN:
+#                 try:
+#                     DATABRICKS_TOKEN = st.secrets["DATABRICKS_TOKEN"]
+#                     logger.info(f"Got DATABRICKS_TOKEN from secrets: {'***' if DATABRICKS_TOKEN else 'None'}")
+#                 except KeyError:
+#                     logger.warning("DATABRICKS_TOKEN not found in secrets")
+#             # Debug: Show available secrets
+#             try:
+#                 available_secrets = list(st.secrets.keys())
+#                 logger.info(f"Available secrets: {available_secrets}")
+#             except Exception as e:
+#                 logger.warning(f"Could not list secrets: {e}")
+#         else:
+#             logger.warning("Streamlit secrets not available")
             
-            return AssistantResponse(
-                messages=[{"role": "assistant", "content": accumulated_content}],
-                request_id=request_id
-            )
-        except Exception:
-            response_area.markdown("_Ran into an error. Retrying without streaming..._")
-            messages, request_id = query_endpoint(
-                endpoint_name=SERVING_ENDPOINT,
-                messages=input_messages,
-                return_traces=ENDPOINT_SUPPORTS_FEEDBACK
-            )
-            response_area.empty()
-            with response_area.container():
-                for message in messages:
-                    render_message(message)
-            return AssistantResponse(messages=messages, request_id=request_id)
+#         # Set environment variables for databricks-sdk
+#         if DATABRICKS_HOST:
+#             os.environ['DATABRICKS_HOST'] = DATABRICKS_HOST
+#         if DATABRICKS_TOKEN:
+#             os.environ['DATABRICKS_TOKEN'] = DATABRICKS_TOKEN
+            
+#     except Exception as e:
+#         logger.error(f"Error reading from Streamlit secrets: {e}")
+#         st.error(f"Error reading secrets: {e}")
 
+# # --- DEBUG SECTION: Show config and secrets status in the UI ---
+# with st.expander('🛠️ Debug: Configuration & Secrets', expanded=True):
+#     st.write('**App config values:**')
+#     st.write(f"SERVING_ENDPOINT: {'✅' if SERVING_ENDPOINT else '❌'} {SERVING_ENDPOINT if SERVING_ENDPOINT else ''}")
+#     st.write(f"DATABRICKS_HOST: {'✅' if DATABRICKS_HOST else '❌'} {DATABRICKS_HOST if DATABRICKS_HOST else ''}")
+#     st.write(f"DATABRICKS_TOKEN: {'✅' if DATABRICKS_TOKEN else '❌'} {'set' if DATABRICKS_TOKEN else ''}")
+#     st.write('**Environment variables:**')
+#     st.write(f"os.environ['SERVING_ENDPOINT']: {os.environ.get('SERVING_ENDPOINT')}")
+#     st.write(f"os.environ['DATABRICKS_HOST']: {os.environ.get('DATABRICKS_HOST')}")
+#     st.write(f"os.environ['DATABRICKS_TOKEN']: {'set' if os.environ.get('DATABRICKS_TOKEN') else ''}")
+#     st.write('**st.secrets keys:**')
+#     try:
+#         st.write(list(st.secrets.keys()))
+#     except Exception as e:
+#         st.write(f"Could not access st.secrets: {e}")
+# # Try to get configuration from environment variables first, then Streamlit secrets
+# SERVING_ENDPOINT = os.getenv('SERVING_ENDPOINT')
+# DATABRICKS_HOST = os.getenv('DATABRICKS_HOST')
+# DATABRICKS_TOKEN = os.getenv('DATABRICKS_TOKEN')
 
-def query_chat_agent_endpoint_and_render(input_messages):
-    """Handle ChatAgent streaming format."""
-    from mlflow.types.agent import ChatAgentChunk
+# # If not found in environment, try Streamlit secrets
+# if not SERVING_ENDPOINT or not DATABRICKS_HOST or not DATABRICKS_TOKEN:
+#     try:
+#         # Debug: Show what we're trying to read
+#         logger.info("Trying to read from Streamlit secrets...")
+        
+#         if hasattr(st, 'secrets'):
+#             logger.info("Streamlit secrets are available")
+#             if not SERVING_ENDPOINT:
+#                 try:
+#                     SERVING_ENDPOINT = st.secrets["SERVING_ENDPOINT"]
+#                     logger.info(f"Got SERVING_ENDPOINT from secrets: {'***' if SERVING_ENDPOINT else 'None'}")
+#                 except KeyError:
+#                     logger.warning("SERVING_ENDPOINT not found in secrets")
+#             if not DATABRICKS_HOST:
+#                 try:
+#                     DATABRICKS_HOST = st.secrets["DATABRICKS_HOST"]
+#                     logger.info(f"Got DATABRICKS_HOST from secrets: {'***' if DATABRICKS_HOST else 'None'}")
+#                 except KeyError:
+#                     logger.warning("DATABRICKS_HOST not found in secrets")
+#             if not DATABRICKS_TOKEN:
+#                 try:
+#                     DATABRICKS_TOKEN = st.secrets["DATABRICKS_TOKEN"]
+#                     logger.info(f"Got DATABRICKS_TOKEN from secrets: {'***' if DATABRICKS_TOKEN else 'None'}")
+#                 except KeyError:
+#                     logger.warning("DATABRICKS_TOKEN not found in secrets")
+#             # Debug: Show available secrets
+#             try:
+#                 available_secrets = list(st.secrets.keys())
+#                 logger.info(f"Available secrets: {available_secrets}")
+#             except Exception as e:
+#                 logger.warning(f"Could not list secrets: {e}")
+#         else:
+#             logger.warning("Streamlit secrets not available")
+            
+#         # Set environment variables for databricks-sdk
+#         if DATABRICKS_HOST:
+#             os.environ['DATABRICKS_HOST'] = DATABRICKS_HOST
+#         if DATABRICKS_TOKEN:
+#             os.environ['DATABRICKS_TOKEN'] = DATABRICKS_TOKEN
+            
+#     except Exception as e:
+#         logger.error(f"Error reading from Streamlit secrets: {e}")
+#         st.error(f"Error reading secrets: {e}")
+
+# # Check if we have the required configuration
+# if not SERVING_ENDPOINT:
+#     st.error("❌ **Missing Configuration: SERVING_ENDPOINT**")
+#     st.info("""
+#     **For Streamlit Cloud deployment**, add this to your app secrets:
+#     ```
+#     SERVING_ENDPOINT = "your-databricks-endpoint-name"
+#     DATABRICKS_HOST = "https://your-workspace.cloud.databricks.com"
+#     DATABRICKS_TOKEN = "your-databricks-token"
+#     ```
     
-    with st.chat_message("assistant", avatar="public/grass.png"):
-        response_area = st.empty()
-        response_area.markdown("_Thinking..._")
-        
-        message_buffers = OrderedDict()
-        request_id = None
-        
-        try:
-            for raw_chunk in query_endpoint_stream(
-                endpoint_name=SERVING_ENDPOINT,
-                messages=input_messages,
-                return_traces=ENDPOINT_SUPPORTS_FEEDBACK
-            ):
-                response_area.empty()
-                chunk = ChatAgentChunk.model_validate(raw_chunk)
-                delta = chunk.delta
-                message_id = delta.id
+#     **For local development**, set environment variables or create `.streamlit/secrets.toml`:
+#     ```toml
+#     SERVING_ENDPOINT = "your-databricks-endpoint-name"
+#     DATABRICKS_HOST = "https://your-workspace.cloud.databricks.com"
+#     DATABRICKS_TOKEN = "your-databricks-token"
+#     ```
+#     """)
+#     st.stop()
 
-                req_id = raw_chunk.get("databricks_output", {}).get("databricks_request_id")
-                if req_id:
-                    request_id = req_id
-                if message_id not in message_buffers:
-                    message_buffers[message_id] = {
-                        "chunks": [],
-                        "render_area": st.empty(),
-                    }
-                message_buffers[message_id]["chunks"].append(chunk)
-                
-                partial_message = reduce_chat_agent_chunks(message_buffers[message_id]["chunks"])
-                render_area = message_buffers[message_id]["render_area"]
-                message_content = partial_message.model_dump_compat(exclude_none=True)
-                with render_area.container():
-                    render_message(message_content)
-            
-            messages = []
-            for msg_id, msg_info in message_buffers.items():
-                messages.append(reduce_chat_agent_chunks(msg_info["chunks"]))
-            
-            return AssistantResponse(
-                messages=[message.model_dump_compat(exclude_none=True) for message in messages],
-                request_id=request_id
-            )
-        except Exception:
-            response_area.markdown("_Ran into an error. Retrying without streaming..._")
-            messages, request_id = query_endpoint(
-                endpoint_name=SERVING_ENDPOINT,
-                messages=input_messages,
-                return_traces=ENDPOINT_SUPPORTS_FEEDBACK
-            )
-            response_area.empty()
-            with response_area.container():
-                for message in messages:
-                    render_message(message)
-            return AssistantResponse(messages=messages, request_id=request_id)
-
-
-def query_responses_endpoint_and_render(input_messages):
-    """Handle ResponsesAgent streaming format using MLflow types."""
-    from mlflow.types.responses import ResponsesAgentStreamEvent
+# if not DATABRICKS_HOST or not DATABRICKS_TOKEN:
+#     st.error("❌ **Missing Databricks Authentication**")
+#     st.info("""
+#     **Required secrets:**
+#     - `DATABRICKS_HOST`: Your Databricks workspace URL
+#     - `DATABRICKS_TOKEN`: Your Databricks personal access token
     
-    with st.chat_message("assistant", avatar="public/grass.png"):
-        response_area = st.empty()
-        response_area.markdown("_Thinking..._")
-        
-        # Track all the messages that need to be rendered in order
-        all_messages = []
-        request_id = None
+#     Add these to your Streamlit Cloud app secrets or local `.streamlit/secrets.toml` file.
+#     """)
+#     st.stop()
 
-        try:
-            for raw_event in query_endpoint_stream(
-                endpoint_name=SERVING_ENDPOINT,
-                messages=input_messages,
-                return_traces=ENDPOINT_SUPPORTS_FEEDBACK
-            ):
-                # Extract databricks_output for request_id
-                if "databricks_output" in raw_event:
-                    req_id = raw_event["databricks_output"].get("databricks_request_id")
-                    if req_id:
-                        request_id = req_id
+# # Debug info (remove in production)
+# with st.expander("🔧 Configuration Debug", expanded=False):
+#     st.write("**Configuration Status:**")
+#     st.write(f"- SERVING_ENDPOINT: {'✅ Set' if SERVING_ENDPOINT else '❌ Missing'}")
+#     st.write(f"- DATABRICKS_HOST: {'✅ Set' if DATABRICKS_HOST else '❌ Missing'}")
+#     st.write(f"- DATABRICKS_TOKEN: {'✅ Set' if DATABRICKS_TOKEN else '❌ Missing'}")
+    
+#     if SERVING_ENDPOINT:
+#         st.write(f"- Endpoint name: `{SERVING_ENDPOINT}`")
+#     if DATABRICKS_HOST:
+#         st.write(f"- Databricks host: `{DATABRICKS_HOST}`")
+
+# try:
+#     ENDPOINT_SUPPORTS_FEEDBACK = endpoint_supports_feedback(SERVING_ENDPOINT)
+#     st.success("✅ Successfully connected to Databricks endpoint!")
+# except Exception as e:
+#     logger.warning(f"Could not check endpoint feedback support: {e}")
+#     ENDPOINT_SUPPORTS_FEEDBACK = False
+#     st.error(f"❌ Could not connect to Databricks: {str(e)}")
+#     st.info("Please check your Databricks credentials and endpoint configuration.")
+
+# def reduce_chat_agent_chunks(chunks):
+#     """
+#     Reduce a list of ChatAgentChunk objects corresponding to a particular
+#     message into a single ChatAgentMessage
+#     """
+#     deltas = [chunk.delta for chunk in chunks]
+#     first_delta = deltas[0]
+#     result_msg = first_delta
+#     msg_contents = []
+    
+#     # Accumulate tool calls properly
+#     tool_call_map = {}  # Map call_id to tool call for accumulation
+    
+#     for delta in deltas:
+#         # Handle content
+#         if delta.content:
+#             msg_contents.append(delta.content)
+            
+#         # Handle tool calls
+#         if hasattr(delta, 'tool_calls') and delta.tool_calls:
+#             for tool_call in delta.tool_calls:
+#                 call_id = getattr(tool_call, 'id', None)
+#                 tool_type = getattr(tool_call, 'type', "function")
+#                 function_info = getattr(tool_call, 'function', None)
+#                 if function_info:
+#                     func_name = getattr(function_info, 'name', "")
+#                     func_args = getattr(function_info, 'arguments', "")
+#                 else:
+#                     func_name = ""
+#                     func_args = ""
                 
-                # Parse using MLflow streaming event types, similar to ChatAgentChunk
-                if "type" in raw_event:
-                    event = ResponsesAgentStreamEvent.model_validate(raw_event)
+#                 if call_id:
+#                     if call_id not in tool_call_map:
+#                         # New tool call
+#                         tool_call_map[call_id] = {
+#                             "id": call_id,
+#                             "type": tool_type,
+#                             "function": {
+#                                 "name": func_name,
+#                                 "arguments": func_args
+#                             }
+#                         }
+#                     else:
+#                         # Accumulate arguments for existing tool call
+#                         existing_args = tool_call_map[call_id]["function"]["arguments"]
+#                         tool_call_map[call_id]["function"]["arguments"] = existing_args + func_args
+
+#                         # Update function name if provided
+#                         if func_name:
+#                             tool_call_map[call_id]["function"]["name"] = func_name
+
+#         # Handle tool call IDs (for tool response messages)
+#         if hasattr(delta, 'tool_call_id') and delta.tool_call_id:
+#             result_msg = result_msg.model_copy(update={"tool_call_id": delta.tool_call_id})
+    
+#     # Convert tool call map back to list
+#     if tool_call_map:
+#         accumulated_tool_calls = list(tool_call_map.values())
+#         result_msg = result_msg.model_copy(update={"tool_calls": accumulated_tool_calls})
+    
+#     result_msg = result_msg.model_copy(update={"content": "".join(msg_contents)})
+#     return result_msg
+
+
+# # --- Render chat history ---
+# for i, element in enumerate(st.session_state.history):
+#     element.render(i)
+
+# def query_endpoint_and_render(task_type, input_messages):
+#     """Handle streaming response based on task type."""
+#     if task_type == "agent/v1/responses":
+#         return query_responses_endpoint_and_render(input_messages)
+#     elif task_type == "agent/v2/chat":
+#         return query_chat_agent_endpoint_and_render(input_messages)
+#     else:  # chat/completions
+#         return query_chat_completions_endpoint_and_render(input_messages)
+
+
+# def query_chat_completions_endpoint_and_render(input_messages):
+#     """Handle ChatCompletions streaming format."""
+#     with st.chat_message("assistant", avatar="public/grass.png"):
+#         response_area = st.empty()
+#         response_area.markdown("_Thinking..._")
+        
+#         accumulated_content = ""
+#         request_id = None
+        
+#         try:
+#             for chunk in query_endpoint_stream(
+#                 endpoint_name=SERVING_ENDPOINT,
+#                 messages=input_messages,
+#                 return_traces=ENDPOINT_SUPPORTS_FEEDBACK
+#             ):
+#                 if "choices" in chunk and chunk["choices"]:
+#                     delta = chunk["choices"][0].get("delta", {})
+#                     content = delta.get("content", "")
+#                     if content:
+#                         accumulated_content += content
+#                         response_area.markdown(accumulated_content)
+                
+#                 if "databricks_output" in chunk:
+#                     req_id = chunk["databricks_output"].get("databricks_request_id")
+#                     if req_id:
+#                         request_id = req_id
+            
+#             return AssistantResponse(
+#                 messages=[{"role": "assistant", "content": accumulated_content}],
+#                 request_id=request_id
+#             )
+#         except Exception:
+#             response_area.markdown("_Ran into an error. Retrying without streaming..._")
+#             messages, request_id = query_endpoint(
+#                 endpoint_name=SERVING_ENDPOINT,
+#                 messages=input_messages,
+#                 return_traces=ENDPOINT_SUPPORTS_FEEDBACK
+#             )
+#             response_area.empty()
+#             with response_area.container():
+#                 for message in messages:
+#                     render_message(message)
+#             return AssistantResponse(messages=messages, request_id=request_id)
+
+
+# def query_chat_agent_endpoint_and_render(input_messages):
+#     """Handle ChatAgent streaming format."""
+#     from mlflow.types.agent import ChatAgentChunk
+    
+#     with st.chat_message("assistant", avatar="public/grass.png"):
+#         response_area = st.empty()
+#         response_area.markdown("_Thinking..._")
+        
+#         message_buffers = OrderedDict()
+#         request_id = None
+        
+#         try:
+#             for raw_chunk in query_endpoint_stream(
+#                 endpoint_name=SERVING_ENDPOINT,
+#                 messages=input_messages,
+#                 return_traces=ENDPOINT_SUPPORTS_FEEDBACK
+#             ):
+#                 response_area.empty()
+#                 chunk = ChatAgentChunk.model_validate(raw_chunk)
+#                 delta = chunk.delta
+#                 message_id = delta.id
+
+#                 req_id = raw_chunk.get("databricks_output", {}).get("databricks_request_id")
+#                 if req_id:
+#                     request_id = req_id
+#                 if message_id not in message_buffers:
+#                     message_buffers[message_id] = {
+#                         "chunks": [],
+#                         "render_area": st.empty(),
+#                     }
+#                 message_buffers[message_id]["chunks"].append(chunk)
+                
+#                 partial_message = reduce_chat_agent_chunks(message_buffers[message_id]["chunks"])
+#                 render_area = message_buffers[message_id]["render_area"]
+#                 message_content = partial_message.model_dump_compat(exclude_none=True)
+#                 with render_area.container():
+#                     render_message(message_content)
+            
+#             messages = []
+#             for msg_id, msg_info in message_buffers.items():
+#                 messages.append(reduce_chat_agent_chunks(msg_info["chunks"]))
+            
+#             return AssistantResponse(
+#                 messages=[message.model_dump_compat(exclude_none=True) for message in messages],
+#                 request_id=request_id
+#             )
+#         except Exception:
+#             response_area.markdown("_Ran into an error. Retrying without streaming..._")
+#             messages, request_id = query_endpoint(
+#                 endpoint_name=SERVING_ENDPOINT,
+#                 messages=input_messages,
+#                 return_traces=ENDPOINT_SUPPORTS_FEEDBACK
+#             )
+#             response_area.empty()
+#             with response_area.container():
+#                 for message in messages:
+#                     render_message(message)
+#             return AssistantResponse(messages=messages, request_id=request_id)
+
+
+# def query_responses_endpoint_and_render(input_messages):
+#     """Handle ResponsesAgent streaming format using MLflow types."""
+#     from mlflow.types.responses import ResponsesAgentStreamEvent
+    
+#     with st.chat_message("assistant", avatar="public/grass.png"):
+#         response_area = st.empty()
+#         response_area.markdown("_Thinking..._")
+        
+#         # Track all the messages that need to be rendered in order
+#         all_messages = []
+#         request_id = None
+
+#         try:
+#             for raw_event in query_endpoint_stream(
+#                 endpoint_name=SERVING_ENDPOINT,
+#                 messages=input_messages,
+#                 return_traces=ENDPOINT_SUPPORTS_FEEDBACK
+#             ):
+#                 # Extract databricks_output for request_id
+#                 if "databricks_output" in raw_event:
+#                     req_id = raw_event["databricks_output"].get("databricks_request_id")
+#                     if req_id:
+#                         request_id = req_id
+                
+#                 # Parse using MLflow streaming event types, similar to ChatAgentChunk
+#                 if "type" in raw_event:
+#                     event = ResponsesAgentStreamEvent.model_validate(raw_event)
                     
-                    if hasattr(event, 'item') and event.item:
-                        item = event.item  # This is a dict, not a parsed object
+#                     if hasattr(event, 'item') and event.item:
+#                         item = event.item  # This is a dict, not a parsed object
                         
-                        if item.get("type") == "message":
-                            # Extract text content from message if present
-                            content_parts = item.get("content", [])
-                            for content_part in content_parts:
-                                if content_part.get("type") == "output_text":
-                                    text = content_part.get("text", "")
-                                    if text:
-                                        all_messages.append({
-                                            "role": "assistant",
-                                            "content": text
-                                        })
+#                         if item.get("type") == "message":
+#                             # Extract text content from message if present
+#                             content_parts = item.get("content", [])
+#                             for content_part in content_parts:
+#                                 if content_part.get("type") == "output_text":
+#                                     text = content_part.get("text", "")
+#                                     if text:
+#                                         all_messages.append({
+#                                             "role": "assistant",
+#                                             "content": text
+#                                         })
                             
-                        elif item.get("type") == "function_call":
-                            # Tool call
-                            call_id = item.get("call_id")
-                            function_name = item.get("name")
-                            arguments = item.get("arguments", "")
+#                         elif item.get("type") == "function_call":
+#                             # Tool call
+#                             call_id = item.get("call_id")
+#                             function_name = item.get("name")
+#                             arguments = item.get("arguments", "")
                             
-                            # Add to messages for history
-                            all_messages.append({
-                                "role": "assistant",
-                                "content": "",
-                                "tool_calls": [{
-                                    "id": call_id,
-                                    "type": "function",
-                                    "function": {
-                                        "name": function_name,
-                                        "arguments": arguments
-                                    }
-                                }]
-                            })
+#                             # Add to messages for history
+#                             all_messages.append({
+#                                 "role": "assistant",
+#                                 "content": "",
+#                                 "tool_calls": [{
+#                                     "id": call_id,
+#                                     "type": "function",
+#                                     "function": {
+#                                         "name": function_name,
+#                                         "arguments": arguments
+#                                     }
+#                                 }]
+#                             })
                             
-                        elif item.get("type") == "function_call_output":
-                            # Tool call output/result
-                            call_id = item.get("call_id")
-                            output = item.get("output", "")
+#                         elif item.get("type") == "function_call_output":
+#                             # Tool call output/result
+#                             call_id = item.get("call_id")
+#                             output = item.get("output", "")
                             
-                            # Add to messages for history
-                            all_messages.append({
-                                "role": "tool",
-                                "content": output,
-                                "tool_call_id": call_id
-                            })
+#                             # Add to messages for history
+#                             all_messages.append({
+#                                 "role": "tool",
+#                                 "content": output,
+#                                 "tool_call_id": call_id
+#                             })
                 
-                # Update the display by rendering all accumulated messages
-                if all_messages:
-                    with response_area.container():
-                        for msg in all_messages:
-                            render_message(msg)
+#                 # Update the display by rendering all accumulated messages
+#                 if all_messages:
+#                     with response_area.container():
+#                         for msg in all_messages:
+#                             render_message(msg)
 
-            return AssistantResponse(messages=all_messages, request_id=request_id)
-        except Exception:
-            response_area.markdown("_Ran into an error. Retrying without streaming..._")
-            messages, request_id = query_endpoint(
-                endpoint_name=SERVING_ENDPOINT,
-                messages=input_messages,
-                return_traces=ENDPOINT_SUPPORTS_FEEDBACK
-            )
-            response_area.empty()
-            with response_area.container():
-                for message in messages:
-                    render_message(message)
-            return AssistantResponse(messages=messages, request_id=request_id)
-
-
+#             return AssistantResponse(messages=all_messages, request_id=request_id)
+#         except Exception:
+#             response_area.markdown("_Ran into an error. Retrying without streaming..._")
+#             messages, request_id = query_endpoint(
+#                 endpoint_name=SERVING_ENDPOINT,
+#                 messages=input_messages,
+#                 return_traces=ENDPOINT_SUPPORTS_FEEDBACK
+#             )
+#             response_area.empty()
+#             with response_area.container():
+#                 for message in messages:
+#                     render_message(message)
+#             return AssistantResponse(messages=messages, request_id=request_id)
 
 
-# --- Chat input (must run BEFORE rendering messages) ---
-prompt = st.chat_input("Ask a question")
-if prompt:
-    # Get the task type for this endpoint
-    task_type = _get_endpoint_task_type(SERVING_ENDPOINT)
+
+
+# # --- Chat input (must run BEFORE rendering messages) ---
+# prompt = st.chat_input("Ask a question")
+# if prompt:
+#     # Get the task type for this endpoint
+#     task_type = _get_endpoint_task_type(SERVING_ENDPOINT)
     
-    # Add user message to chat history
-    user_msg = UserMessage(content=prompt)
-    st.session_state.history.append(user_msg)
-    user_msg.render(len(st.session_state.history) - 1)
+#     # Add user message to chat history
+#     user_msg = UserMessage(content=prompt)
+#     st.session_state.history.append(user_msg)
+#     user_msg.render(len(st.session_state.history) - 1)
 
-    # Convert history to standard chat message format for the query methods
-    input_messages = [msg for elem in st.session_state.history for msg in elem.to_input_messages()]
+#     # Convert history to standard chat message format for the query methods
+#     input_messages = [msg for elem in st.session_state.history for msg in elem.to_input_messages()]
     
-    # Handle the response using the appropriate handler
-    assistant_response = query_endpoint_and_render(task_type, input_messages)
+#     # Handle the response using the appropriate handler
+#     assistant_response = query_endpoint_and_render(task_type, input_messages)
     
-    # Add assistant response to history
-    st.session_state.history.append(assistant_response)
+#     # Add assistant response to history
+#     st.session_state.history.append(assistant_response)
