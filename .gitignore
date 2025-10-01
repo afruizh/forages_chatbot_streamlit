@@ -107,7 +107,7 @@ coverage.xml
 *.yaml
 *.json
 *.xml
-*.txt
+#*.txt
 *.pdf
 *.docx
 *.pptx
