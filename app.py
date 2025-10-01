@@ -1,18 +1,9 @@
-import logging
-import os
 import streamlit as st
-from model_serving_utils import (
-    endpoint_supports_feedback, 
-    query_endpoint, 
-    query_endpoint_stream, 
-    _get_endpoint_task_type,
-)
-from collections import OrderedDict
-from messages import UserMessage, AssistantResponse, render_message
+
 
 # Configure Streamlit page with favicon
 st.set_page_config(
-    page_title="Chat Forages",
+    page_title="Tropical Forages Chat",
     page_icon="public/grass.png",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -168,6 +159,17 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
+
+# import logging
+# import os
+# from model_serving_utils import (
+#     endpoint_supports_feedback, 
+#     query_endpoint, 
+#     query_endpoint_stream, 
+#     _get_endpoint_task_type,
+# )
+# from collections import OrderedDict
+# from messages import UserMessage, AssistantResponse, render_message
 
 # logging.basicConfig(level=logging.INFO)
 # logger = logging.getLogger(__name__)
