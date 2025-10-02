@@ -11,6 +11,7 @@
 # st.write(f"SERVING_ENDPOINT: {secret}")
 
 import streamlit as st
+
 import os
 
 
@@ -30,6 +31,22 @@ st.set_page_config(
 # Apply custom CSS for background and light theme
 st.markdown("""
 <style>
+            
+    /* Make chat and markdown more mobile-friendly */
+    .stChatMessage, .stMarkdown, .stTextInput, .stButton, .stTextArea {
+        max-width: 100vw !important;
+        word-break: break-word;
+        font-size: 1.05em;
+    }
+    /* Remove horizontal scroll on mobile */
+    .block-container { padding-left: 0.5rem; padding-right: 0.5rem; }
+    @media (max-width: 600px) {
+        .stChatMessage, .stMarkdown, .stTextInput, .stButton, .stTextArea {
+            font-size: 1.15em;
+        }
+        .block-container { padding-left: 0.2rem; padding-right: 0.2rem; }
+    }
+            
     /* Set light theme colors */
     :root {
         --background-color: #ffffff;
@@ -158,21 +175,50 @@ with open(os.path.join(PUBLIC_DIR, "logo.png"), "rb") as f:
     logo_img = base64.b64encode(f.read()).decode()
 
 st.markdown(f"""
-<div style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0; margin-bottom: 2rem;">
-    <div style="flex: 0.7;">
-        <h1 style="color: #28a745; font-size: 1.0rem; font-weight: bold; margin: 0;">
-            TROPICAL FORAGES CHAT
-        </h1>
-        <p style="color: #6c757d; font-size: 0.85rem; margin: 0 0 0 0; line-height: 1.3;">
-            This information is generated using a large language model (LLM) and may contain errors or biases. While we strive for accuracy, it's important to verify information and consult professionals for specific advice. You are responsible for how you use this content. <b>Please do not enter any personal or sensitive information.</b>
-        </p>
-    </div>
-    <div style="display: flex; gap: 15px; align-items: center; flex-shrink: 0;">
-        <a href="https://tropicalforages.info/text/intro/index.html" target="_blank" style="text-decoration: none;">
-            <img src="data:image/jpeg;base64,{header_img}" style="height: 80px; border-radius: 8px; cursor: pointer; transition: opacity 0.3s ease;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-        </a>
-        <img src="data:image/png;base64,{logo_img}" style="height: 200px;">
-    </div>
+<style>
+@media (max-width: 1500px) {{
+    .responsive-header {{
+        flex-direction: column !important;
+        align-items: stretch !important;
+        text-align: center !important;
+        gap: 1.2rem !important;
+    }}
+    .responsive-header .header-left, .responsive-header .header-right {{
+        flex: unset !important;
+        width: 100% !important;
+        justify-content: center !important;
+        align-items: center !important;
+    }}
+    .responsive-header h1 {{
+        font-size: 1.2rem !important;
+    }}
+    .responsive-header p {{
+        font-size: 0.95rem !important;
+    }}
+    .responsive-header img {{
+        height: 60px !important;
+        max-width: 90vw !important;
+    }}
+    .responsive-header .logo-img {{
+        height: 100px !important;
+    }}
+}}
+</style>
+<div class="responsive-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0; margin-bottom: 2rem; gap: 2rem;">
+        <div class="header-left" style="flex: 0.7; min-width: 0;">
+                <h1 style="color: #28a745; font-size: 1.0rem; font-weight: bold; margin: 0;">
+                        TROPICAL FORAGES CHAT
+                </h1>
+                <p style="color: #6c757d; font-size: 0.85rem; margin: 0 0 0 0; line-height: 1.3;">
+                        This information is generated using a large language model (LLM) and may contain errors or biases. While we strive for accuracy, it's important to verify information and consult professionals for specific advice. You are responsible for how you use this content. <b>Please do not enter any personal or sensitive information.</b>
+                </p>
+        </div>
+        <div class="header-right" style="display: flex; gap: 15px; align-items: center; flex-shrink: 0; min-width: 0;">
+                <a href="https://tropicalforages.info/text/intro/index.html" target="_blank" style="text-decoration: none;">
+                        <img src="data:image/jpeg;base64,{header_img}" style="height: 80px; border-radius: 8px; cursor: pointer; transition: opacity 0.3s ease;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                </a>
+                <img class="logo-img" src="data:image/png;base64,{logo_img}" style="height: 200px;">
+        </div>
 </div>
 """, unsafe_allow_html=True)
 

@@ -62,16 +62,36 @@ class AssistantResponse(Message):
 def render_message(msg):
     """Render a single message."""
     if msg["role"] == "assistant":
-        # Render content first if it exists
-        if msg.get("content"):
-            st.markdown(msg["content"])
-        
-        # Then render tool calls if they exist
-        if "tool_calls" in msg and msg["tool_calls"]:
-            for call in msg["tool_calls"]:
-                fn_name = call["function"]["name"]
-                args = call["function"]["arguments"]
-                st.markdown(f"🛠️ Calling **`{fn_name}`** with:\n```json\n{args}\n```")
+        import ast
+        content = msg.get("content")
+        if content:
+            rendered = False
+            # Try to parse stringified list/dict and extract only final answer(s)
+            if isinstance(content, str) and (content.strip().startswith("[") or content.strip().startswith("{")):
+                try:
+                    parsed = ast.literal_eval(content)
+                    # If it's a list, look for dicts with type 'text' or 'output_text'
+                    if isinstance(parsed, list):
+                        for part in parsed:
+                            if isinstance(part, dict) and part.get("type") in ("text", "output_text") and "text" in part:
+                                st.markdown(part["text"])
+                                rendered = True
+                    elif isinstance(parsed, dict) and parsed.get("type") in ("text", "output_text") and "text" in parsed:
+                        st.markdown(parsed["text"])
+                        rendered = True
+                except Exception:
+                    pass
+            if not rendered and isinstance(content, str):
+                # Only display if it doesn't look like a tool response or raw doc
+                if not (content.strip().startswith("[Document(") or content.strip().startswith("[{'chunk_id'")):
+                    st.markdown(content)
+        # Only render tool calls if you want to show them to the user (optional)
+        # If you want to skip tool calls, comment out or remove the following block:
+        # if "tool_calls" in msg and msg["tool_calls"]:
+        #     for call in msg["tool_calls"]:
+        #         fn_name = call["function"]["name"]
+        #         args = call["function"]["arguments"]
+        #         st.markdown(f"🛠️ Calling **`{fn_name}`** with:\n```json\n{args}\n```")
     elif msg["role"] == "tool":
         st.markdown("🧰 Tool Response:")
         st.code(msg["content"], language="json")
