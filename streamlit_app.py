@@ -1,3 +1,4 @@
+
 # import streamlit as st
 
 # st.title("My Streamlit App")
@@ -11,9 +12,7 @@
 # st.write(f"SERVING_ENDPOINT: {secret}")
 
 import streamlit as st
-
 import os
-
 
 # Configure Streamlit page with favicon
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -28,143 +27,6 @@ st.set_page_config(
     }
 )
 
-# Apply custom CSS for background and light theme
-st.markdown("""
-<style>
-            
-    /* Make chat and markdown more mobile-friendly */
-    .stChatMessage, .stMarkdown, .stTextInput, .stButton, .stTextArea {
-        max-width: 100vw !important;
-        word-break: break-word;
-        font-size: 1.05em;
-    }
-    /* Remove horizontal scroll on mobile */
-    .block-container { padding-left: 0.5rem; padding-right: 0.5rem; }
-    @media (max-width: 600px) {
-        .stChatMessage, .stMarkdown, .stTextInput, .stButton, .stTextArea {
-            font-size: 1.15em;
-        }
-        .block-container { padding-left: 0.2rem; padding-right: 0.2rem; }
-    }
-            
-    /* Set light theme colors */
-    :root {
-        --background-color: #ffffff;
-        --text-color: #1a1a1a;
-        --secondary-bg: #f8f9fa;
-        --border-color: #e1e4e8;
-    }
-    
-    /* Main app background with gradient */
-    .stApp {
-        background-color: #fff;
-        background-image: 
-            radial-gradient(at 21% 11%, hsl(126.83deg 57% 78% / 52%) 0, transparent 50%), 
-            radial-gradient(at 85% 0, rgb(233 230 186 / 53%) 0, transparent 50%), 
-            radial-gradient(at 91% 36%, rgb(212 255 194 / 68%) 0, transparent 50%), 
-            radial-gradient(at 8% 40%, rgb(239 251 218 / 46%) 0, transparent 50%);
-    }
-    
-    /* Sidebar styling */
-    .css-1d391kg {
-        background-color: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(10px);
-    }
-    
-    /* Chat message styling */
-    .stChatMessage {
-        background-color: rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(5px);
-        border-radius: 10px;
-        border: 1px solid rgba(225, 228, 232, 0.5);
-    }
-    
-    /* Input styling */
-    .stTextInput > div > div > input {
-        background-color: rgba(255, 255, 255, 0.9);
-        border: 1px solid #e1e4e8;
-        border-radius: 8px;
-    }
-    
-    /* Button styling */
-    .stButton > button {
-        background-color: rgba(255, 255, 255, 0.9);
-        border: 1px solid #e1e4e8;
-        border-radius: 8px;
-        color: #1a1a1a;
-    }
-    
-    .stButton > button:hover {
-        background-color: rgba(248, 249, 250, 0.9);
-        border-color: #d1d5da;
-    }
-    
-    /* Metrics and info boxes */
-    .metric-container {
-        background-color: rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(5px);
-        border-radius: 10px;
-        border: 1px solid rgba(225, 228, 232, 0.5);
-        padding: 1rem;
-    }
-    
-    /* Force light theme for code blocks */
-    .stCodeBlock {
-        background-color: rgba(248, 249, 250, 0.9) !important;
-    }
-    
-    /* Custom header styling */
-    .chat-header {
-        background: linear-gradient(90deg, #28a745, #20c997);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-size: 2.5rem;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    
-    /* Constrain main content to 80% width */
-    .block-container {
-        max-width: 60% !important;
-        margin: 0 auto !important;
-        padding-left: 2rem !important;
-        padding-right: 2rem !important;
-    }
-    
-    /* Alternative selector for content width constraint */
-    [data-testid="stAppViewContainer"] > .main > .block-container {
-        max-width: 60% !important;
-        margin: 0 auto !important;
-    }
-    
-    /* Make chat input full width like header */
-    [data-testid="stChatInput"] {
-        max-width: 60% !important;
-        width: 60% !important;
-        left: 20% !important;
-        transform: none !important;
-    }
-    
-    /* Chat input container full width */
-    .stChatInput > div {
-        max-width: 100% !important;
-        width: 100% !important;
-    }
-    
-    /* Alternative chat input selectors */
-    [data-testid="stBottom"] > div {
-        max-width: 100% !important;
-        width: 100% !important;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# --- Init state ---
-if "history" not in st.session_state:
-    st.session_state.history = []
-
 # Simple header with title, paragraph and logos - HTML only
 import base64
 
@@ -174,53 +36,300 @@ with open(os.path.join(PUBLIC_DIR, "headerv2.jpg"), "rb") as f:
 with open(os.path.join(PUBLIC_DIR, "logo.png"), "rb") as f:
     logo_img = base64.b64encode(f.read()).decode()
 
-st.markdown(f"""
-<style>
-@media (max-width: 1500px) {{
-    .responsive-header {{
-        flex-direction: column !important;
-        align-items: stretch !important;
-        text-align: center !important;
-        gap: 1.2rem !important;
-    }}
-    .responsive-header .header-left, .responsive-header .header-right {{
-        flex: unset !important;
+st.markdown("""
+    <style>
+    .block-container {
+        padding-top: 70px !important;
+        padding-bottom: 0rem !important;
+        padding-left: 0rem !important;
+        padding-right: 0rem !important;
+        margin: 0 !important;
+        max-width: 100vw !important;
+        width: 100vw !important;
+    }
+    .stApp {
+        background-color: #f6f7fb !important;
+    }
+
+    /* Prompt field green border on focus */
+    input:focus, textarea:focus {
+        border-color: #218838 !important;
+        box-shadow: 0 0 0 2px #b2f5ea !important;
+        outline: none !important;
+    }
+    input:focus:invalid, textarea:focus:invalid {
+        border-color: #218838 !important;
+        box-shadow: 0 0 0 2px #b2f5ea !important;
+    }
+        /* Force green border ONLY on focus, never red */
+        [data-testid="stChatInput"] input:focus {
+            border: 2px solid #218838 !important;
+            box-shadow: none !important;
+            outline: none !important;
+            border-color: #218838 !important;
+        }
+                
+    /* Center and constrain chat prompt and messages */
+    .stChatMessage, .stChatMessage[data-testid="stChatMessage-user"], .stChatMessage[data-testid="stChatMessage-assistant"] {
+        background: #fff !important;
+        box-shadow: 0 2px 12px 0 rgba(0,0,0,0.10) !important;
+        border-radius: 20px !important;
+        border: 1px solid #e1e4e8 !important;
+    }
+            
+    [data-testid="stChatInput"], .stChatMessage, .stChatMessage[data-testid="stChatMessage-user"], .stChatMessage[data-testid="stChatMessage-assistant"] {
+        margin-left: auto !important;
+        margin-right: auto !important;
+        max-width: 1200px !important;
         width: 100% !important;
-        justify-content: center !important;
-        align-items: center !important;
-    }}
-    .responsive-header h1 {{
-        font-size: 1.2rem !important;
-    }}
-    .responsive-header p {{
-        font-size: 0.95rem !important;
-    }}
-    .responsive-header img {{
-        height: 60px !important;
-        max-width: 90vw !important;
-    }}
-    .responsive-header .logo-img {{
-        height: 100px !important;
-    }}
-}}
-</style>
-<div class="responsive-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0; margin-bottom: 2rem; gap: 2rem;">
-        <div class="header-left" style="flex: 0.7; min-width: 0;">
-                <h1 style="color: #28a745; font-size: 1.0rem; font-weight: bold; margin: 0;">
-                        TROPICAL FORAGES CHAT
-                </h1>
-                <p style="color: #6c757d; font-size: 0.85rem; margin: 0 0 0 0; line-height: 1.3;">
-                        This information is generated using a large language model (LLM) and may contain errors or biases. While we strive for accuracy, it's important to verify information and consult professionals for specific advice. You are responsible for how you use this content. <b>Please do not enter any personal or sensitive information.</b>
-                </p>
-        </div>
-        <div class="header-right" style="display: flex; gap: 15px; align-items: center; flex-shrink: 0; min-width: 0;">
-                <a href="https://tropicalforages.info/text/intro/index.html" target="_blank" style="text-decoration: none;">
-                        <img src="data:image/jpeg;base64,{header_img}" style="height: 80px; border-radius: 8px; cursor: pointer; transition: opacity 0.3s ease;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-                </a>
-                <img class="logo-img" src="data:image/png;base64,{logo_img}" style="height: 200px;">
-        </div>
-</div>
+        display: block !important;
+    }
+            
+    input:focus, textarea:focus, select:focus {
+    border-color: #218838 !important;
+    box-shadow: 0 0 0 2px #b2f5ea !important;
+    outline: none !important;
+}
+    </style>
 """, unsafe_allow_html=True)
+
+# --- Modern Header Bar ---
+st.markdown(
+
+    f"""
+    <style>
+    
+    </style>
+    <div style='width: 100%; background: linear-gradient(90deg, #218838 0%, #20c997 100%); padding: 0.75rem 0 0.75rem 0; box-shadow: 0 6px 18px -6px rgba(0,0,0,0.50); position: relative; margin-bottom: 2rem;'>
+            <div style='max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between;'>
+                <div style='margin-left: 2rem;margin-right: 10rem;'>
+                    <div style='font-size: 1.4rem; font-weight: 700; color: #fff; letter-spacing: 0.5px;'>Tropical Forages Research Assistant</div>
+                    <div style='font-size: 1rem; color: #e6ffe6; font-weight: 400; margin-top: 2px;'>Advanced Agricultural Intelligence</div>
+                </div>
+                <div class='header-right' style='display: flex; gap: 15px; align-items: center; flex-shrink: 0; min-width: 0;'>
+                <a href='https://tropicalforages.info/text/intro/index.html' target='_blank' style='text-decoration: none;'>
+                        <img src='data:image/jpeg;base64,{header_img}' style='height: 60px; border-radius: 8px; cursor: pointer; transition: opacity 0.3s ease;' onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                </a>
+                <img class='logo-img' src='data:image/png;base64,{logo_img}' style='height: 150px;'>
+        </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# --- Introduction Section ---
+st.markdown("""
+    <div style='width: 100%; margin: 0 auto; margin-bottom: 2.5rem;'>
+        <div style='max-width: 700px; margin: 0 auto; text-align: center;'>
+            <h1 style='font-size: 1.1rem; font-weight: 700; color: #222; margin-bottom: 0.5rem;'>Welcome to Tropical Forages Research</h1>
+            <p style='font-size: 0.85rem; color: #444; margin-bottom: 0.5rem;'>Get accurate, cited information from ForagesWiki and peer-reviewed journal articles. Ask questions about plant species, nutritional values, climate adaptation, and management practices.
+            This information is generated using a large language model (LLM) and may contain errors or biases. While we strive for accuracy, it's important to verify information and consult professionals for specific advice. You are responsible for how you use this content. <b>Please do not enter any personal or sensitive information.</b></p>
+        </div>
+    </div>
+""", unsafe_allow_html=True)
+
+# --- Sample Prompts Section ---
+st.markdown("<div style='font-size: 1rem; font-weight: 600; color: #218838; margin-bottom: 0.5rem; text-align:center;'>EXAMPLE QUERIES</div>", unsafe_allow_html=True)
+example_prompts = [
+    "Compare Brachiaria species for drought tolerance",
+    "Best tropical forages for acidic soils",
+    "Climate adaptation strategies for forage systems"
+]
+
+if "prompt" not in st.session_state:
+    st.session_state.prompt = ""
+
+for prompt_text in example_prompts:
+    if st.button(prompt_text, key=f"prompt_{prompt_text}"):
+        st.session_state.prompt = prompt_text
+
+
+
+# # Apply custom CSS for background and light theme
+# st.markdown("""
+# <style>
+            
+#     /* Make chat and markdown more mobile-friendly */
+#     .stChatMessage, .stMarkdown, .stTextInput, .stButton, .stTextArea {
+#         max-width: 100vw !important;
+#         word-break: break-word;
+#         font-size: 1.05em;
+#     }
+#     /* Remove horizontal scroll on mobile */
+#     .block-container { padding-left: 0.5rem; padding-right: 0.5rem; }
+#     @media (max-width: 600px) {
+#         .stChatMessage, .stMarkdown, .stTextInput, .stButton, .stTextArea {
+#             font-size: 1.15em;
+#         }
+#         .block-container { padding-left: 0.2rem; padding-right: 0.2rem; }
+#     }
+            
+#     /* Set light theme colors */
+#     :root {
+#         --background-color: #ffffff;
+#         --text-color: #1a1a1a;
+#         --secondary-bg: #f8f9fa;
+#         --border-color: #e1e4e8;
+#     }
+    
+#     /* Main app background with gradient */
+#     .stApp {
+#         background-color: #fff;
+#         background-image: 
+#             radial-gradient(at 21% 11%, hsl(126.83deg 57% 78% / 52%) 0, transparent 50%), 
+#             radial-gradient(at 85% 0, rgb(233 230 186 / 53%) 0, transparent 50%), 
+#             radial-gradient(at 91% 36%, rgb(212 255 194 / 68%) 0, transparent 50%), 
+#             radial-gradient(at 8% 40%, rgb(239 251 218 / 46%) 0, transparent 50%);
+#     }
+    
+#     /* Sidebar styling */
+#     .css-1d391kg {
+#         background-color: rgba(255, 255, 255, 0.9);
+#         backdrop-filter: blur(10px);
+#     }
+    
+#     /* Chat message styling */
+#     .stChatMessage {
+#         background-color: rgba(255, 255, 255, 0.8);
+#         backdrop-filter: blur(5px);
+#         border-radius: 10px;
+#         border: 1px solid rgba(225, 228, 232, 0.5);
+#     }
+    
+#     /* Input styling */
+#     .stTextInput > div > div > input {
+#         background-color: rgba(255, 255, 255, 0.9);
+#         border: 1px solid #e1e4e8;
+#         border-radius: 8px;
+#     }
+    
+#     /* Button styling */
+#     .stButton > button {
+#         background-color: rgba(255, 255, 255, 0.9);
+#         border: 1px solid #e1e4e8;
+#         border-radius: 8px;
+#         color: #1a1a1a;
+#     }
+    
+#     .stButton > button:hover {
+#         background-color: rgba(248, 249, 250, 0.9);
+#         border-color: #d1d5da;
+#     }
+    
+#     /* Metrics and info boxes */
+#     .metric-container {
+#         background-color: rgba(255, 255, 255, 0.8);
+#         backdrop-filter: blur(5px);
+#         border-radius: 10px;
+#         border: 1px solid rgba(225, 228, 232, 0.5);
+#         padding: 1rem;
+#     }
+    
+#     /* Force light theme for code blocks */
+#     .stCodeBlock {
+#         background-color: rgba(248, 249, 250, 0.9) !important;
+#     }
+    
+#     /* Custom header styling */
+#     .chat-header {
+#         background: linear-gradient(90deg, #28a745, #20c997);
+#         -webkit-background-clip: text;
+#         -webkit-text-fill-color: transparent;
+#         background-clip: text;
+#         font-size: 2.5rem;
+#         font-weight: bold;
+#         text-align: center;
+#         margin-bottom: 2rem;
+#     }
+    
+#     /* Constrain main content to 80% width */
+#     .block-container {
+#         max-width: 60% !important;
+#         margin: 0 auto !important;
+#         padding-left: 2rem !important;
+#         padding-right: 2rem !important;
+#     }
+    
+#     /* Alternative selector for content width constraint */
+#     [data-testid="stAppViewContainer"] > .main > .block-container {
+#         max-width: 60% !important;
+#         margin: 0 auto !important;
+#     }
+    
+#     /* Make chat input full width like header */
+#     [data-testid="stChatInput"] {
+#         max-width: 60% !important;
+#         width: 60% !important;
+#         left: 20% !important;
+#         transform: none !important;
+#     }
+    
+#     /* Chat input container full width */
+#     .stChatInput > div {
+#         max-width: 100% !important;
+#         width: 100% !important;
+#     }
+    
+#     /* Alternative chat input selectors */
+#     [data-testid="stBottom"] > div {
+#         max-width: 100% !important;
+#         width: 100% !important;
+#     }
+# </style>
+# """, unsafe_allow_html=True)
+
+# --- Init state ---
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+
+
+# st.markdown(f"""
+# <style>
+# @media (max-width: 1500px) {{
+#     .responsive-header {{
+#         flex-direction: column !important;
+#         align-items: stretch !important;
+#         text-align: center !important;
+#         gap: 1.2rem !important;
+#     }}
+#     .responsive-header .header-left, .responsive-header .header-right {{
+#         flex: unset !important;
+#         width: 100% !important;
+#         justify-content: center !important;
+#         align-items: center !important;
+#     }}
+#     .responsive-header h1 {{
+#         font-size: 1.2rem !important;
+#     }}
+#     .responsive-header p {{
+#         font-size: 0.95rem !important;
+#     }}
+#     .responsive-header img {{
+#         height: 60px !important;
+#         max-width: 90vw !important;
+#     }}
+#     .responsive-header .logo-img {{
+#         height: 100px !important;
+#     }}
+# }}
+# </style>
+# <div class="responsive-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0; margin-bottom: 2rem; gap: 2rem;">
+#         <div class="header-left" style="flex: 0.7; min-width: 0;">
+#                 <h1 style="color: #28a745; font-size: 1.0rem; font-weight: bold; margin: 0;">
+#                         TROPICAL FORAGES CHAT
+#                 </h1>
+#                 <p style="color: #6c757d; font-size: 0.85rem; margin: 0 0 0 0; line-height: 1.3;">
+#                         This information is generated using a large language model (LLM) and may contain errors or biases. While we strive for accuracy, it's important to verify information and consult professionals for specific advice. You are responsible for how you use this content. <b>Please do not enter any personal or sensitive information.</b>
+#                 </p>
+#         </div>
+#         <div class="header-right" style="display: flex; gap: 15px; align-items: center; flex-shrink: 0; min-width: 0;">
+#                 <a href="https://tropicalforages.info/text/intro/index.html" target="_blank" style="text-decoration: none;">
+#                         <img src="data:image/jpeg;base64,{header_img}" style="height: 80px; border-radius: 8px; cursor: pointer; transition: opacity 0.3s ease;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+#                 </a>
+#                 <img class="logo-img" src="data:image/png;base64,{logo_img}" style="height: 200px;">
+#         </div>
+# </div>
+# """, unsafe_allow_html=True)
 
 import logging
 import os
@@ -706,6 +815,8 @@ if prompt:
     
     # Handle the response using the appropriate handler
     assistant_response = query_endpoint_and_render(task_type, input_messages)
+
+    #st.write(assistant_response.messages)
     
     # Add assistant response to history
     st.session_state.history.append(assistant_response)

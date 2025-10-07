@@ -61,6 +61,10 @@ class AssistantResponse(Message):
 
 def render_message(msg):
     """Render a single message."""
+
+    # print("Rendering message:*****************************************")
+    # print(msg)
+    # print("*****************************************")
     if msg["role"] == "assistant":
         import ast
         content = msg.get("content")
