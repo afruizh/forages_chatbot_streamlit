@@ -7,6 +7,7 @@ Streamlit app reruns, avoiding isinstance comparison issues.
 """
 import streamlit as st
 from abc import ABC, abstractmethod
+import re
 
 
 class Message(ABC):
@@ -69,6 +70,11 @@ def render_message(msg):
         import ast
         content = msg.get("content")
         if content:
+
+            # Remove text patterns like 【hash†page_content】
+            content = re.sub(r'【[^】]*】', '', content)
+
+
             rendered = False
             # Try to parse stringified list/dict and extract only final answer(s)
             if isinstance(content, str) and (content.strip().startswith("[") or content.strip().startswith("{")):
@@ -97,8 +103,9 @@ def render_message(msg):
         #         args = call["function"]["arguments"]
         #         st.markdown(f"🛠️ Calling **`{fn_name}`** with:\n```json\n{args}\n```")
     elif msg["role"] == "tool":
-        st.markdown("🧰 Tool Response:")
-        st.code(msg["content"], language="json")
+        #st.markdown("🧰 Tool Response:")
+        #st.code(msg["content"], language="json")
+        st.markdown("🧰 Retrieving information...")
 
 
 @st.fragment
