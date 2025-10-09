@@ -47,6 +47,31 @@
     width: 13rem !important;
     height: 7rem !important;
 }
+
+/* EXAMPLE PROMPTS BUTTONS************************************/
+
+/* Make horizontal block responsive */
+div[data-testid="stHorizontalBlock"] {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 13rem)) !important;
+    justify-content: center !important;
+    gap: 1rem !important;
+    padding: 0 1rem !important;
+}
+
+/* Configure columns for equal sizing */
+div[data-testid="stColumn"] {
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+/* Handle padding columns */
+div[data-testid="stColumn"]:first-child,
+div[data-testid="stColumn"]:last-child {
+    display: none !important;
+}
+
+/**********************************************/
         
 /* Hide default header */
 header[data-testid="stHeader"] {
@@ -119,9 +144,45 @@ header[data-testid="stHeader"] {
 .logo-tf {
     height: 40px !important;
     width: auto !important;
-
 }
 
+/* Media query for mobile screens */
+@media screen and (max-width: 768px) {
+    .header-container {
+        padding: 0 1rem !important;
+    }
+
+    .header-content {
+        display: flex !important;
+        align-items: center !important;
+        gap: 1rem !important;
+    }
+
+    .header-title {
+        font-size: 1rem !important;
+    }
+
+    .header-subtitle {
+        display: none !important;
+    }
+
+    .header-right {
+        display: none !important;
+    }
+
+    .logo-tf {
+        height: 30px !important;
+    }
+
+    .block-container {
+        padding-top: 6rem !important;  /* Reduce top padding for mobile */
+    }
+
+    .custom-header {
+        margin-top: -6rem !important;  /* Adjust header position for mobile */
+        padding: 0.5rem 0 !important;
+    }
+}
 
 /***********************************/
 .intro-container {

@@ -455,6 +455,7 @@ def reduce_chat_agent_chunks(chunks):
 
 def query_endpoint_and_render(task_type, input_messages):
     """Handle streaming response based on task type."""
+    print("USING TASK TYPE: ", task_type)
     if task_type == "agent/v1/responses":
         return query_responses_endpoint_and_render(input_messages)
     elif task_type == "agent/v2/chat":
@@ -657,7 +658,7 @@ def query_responses_endpoint_and_render(input_messages):
                 messages=input_messages,
                 return_traces=ENDPOINT_SUPPORTS_FEEDBACK
             )
-            response_area.empty()
+            #response_area.empty()
             with response_area.container():
                 for message in messages:
                     render_message(message)
@@ -731,7 +732,7 @@ def render_intro():
 
             # Make a list of len(example_prompts) + 2 with 1.5 rem padding on sides
             col_widths = [1.0] + [0.6] * len(example_prompts) + [1.0]
-            centered_cols = st.columns(col_widths)  # 3 buttons, center with padding
+            centered_cols = st.columns(col_widths)  # buttons, center with padding
             for idx, prompt_text in enumerate(example_prompts):
                 with centered_cols[idx + 1]:  # Use the middle columns for buttons
                     if st.button(prompt_text, key=f"prompt_{prompt_text}"):
